@@ -1,0 +1,56 @@
+[Month 1: Perception]
+  Week 1-2: OpenCV Basics, Bounding Boxes, YOLO Inference ──> (Done! ✓)
+  Week 3-4: Initial Dataset, Custom YOLOv8 Training, Custom best.pt ──> (Done! ✓)
+
+[Month 2: Optimization & Edge Logic]
+  Week 5: Dataset Replacement, Class Alignment & Verification ──> 📍 [YOU ARE HERE]
+  Week 6: Advanced YOLO Training & Person-PPE Association Math
+  Week 7: Evidence Capture & CSV Incident Logging
+
+[Month 3: Intelligence & Integration]
+  Week 8: LLM Fundamentals & LangChain Setup
+  Week 9: FAISS Vector DB & RAG Construction Safety Retrieval
+  Week 10: Streamlit Dashboard & Telegram Alert Integration
+
+
+
+  Your Week 5 Day-by-Day Action Plan
+Since you are in Week 5, our core objective is to completely transition to this new 10-class dataset, verify its contents, and kick off a highly optimized training run.
+
+Here is your day-to-day breakdown for this week:
+
+Day 1 (Today): Conceptual Realignment & Environment Setup
+
+Understand the hardware constraints (CPU vs GPU).
+
+Set up your Kaggle Notebook environment and link the Roboflow/Kaggle construction safety dataset.
+
+Day 2: Dataset Auditing & data.yaml Verification
+
+Write a quick Python script to print out the class distribution to ensure the dataset actually contains plenty of NO-Hardhat and NO-Safety Vest examples.
+
+Day 3: Setting Up Training Hyperparameters
+
+Write the training script configuration using yolov8s.pt.
+
+Set up your image size (640), epochs (50), and batch size (16).
+
+Day 4: Initiating the Training Loop (The Heavy Lifting)
+
+Run the training on Kaggle's T4 GPU.
+
+Monitor the training logs to ensure the loss values are steadily decreasing.
+
+Day 5: Precision vs. Recall Analysis
+
+Learn how to read the generated validation charts (confusion_matrix.png, results.png, and F1_curve.png).
+
+Verify if the model is confusing NO-Hardhat with normal human hair.
+
+Day 6: Exporting the Optimized best.pt
+
+Download your brand new, highly optimized weight file from Kaggle to your local machine.
+
+Day 7: Week 5 Retrospective & Verification
+
+Run a final sanity test on a few static images locally to ensure the 10 classes are predicting correctly before we move to Week 6 (Webcam & Video testing).

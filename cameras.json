@@ -1,0 +1,26 @@
+[
+    {
+        "camera_id": "CAM_01",
+        "name": "Main Gate",
+        "source": 0,
+        "location": "Entrance Area",
+        "status": "ONLINE",
+        "description": "Main entrance monitoring"
+    },
+    {
+        "camera_id": "CAM_02",
+        "name": "Excavation Zone",
+        "source": 1,
+        "location": "Digging Area",
+        "status": "ONLINE",
+        "description": "Heavy machinery zone"
+    },
+    {
+        "camera_id": "CAM_03",
+        "name": "New Camera",
+        "source": 0,
+        "location": "Construction Site",
+        "status": "ONLINE",
+        "description": ""
+    }
+]

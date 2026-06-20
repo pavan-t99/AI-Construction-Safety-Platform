@@ -1,0 +1,10 @@
+*.pt
+*.db
+data/
+__pycache__/
+*.pyc
+.env
+*.jpg
+*.mp4
+*.avi
+logs/

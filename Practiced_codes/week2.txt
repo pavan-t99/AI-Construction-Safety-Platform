@@ -1,0 +1,153 @@
+Week 2 Goal
+
+Transform:
+
+Image + Label File
+
+into:
+
+Image/Webcam
+↓
+YOLO Detection
+↓
+Violation Detection
+↓
+Evidence Capture
+Day 8 — Run YOLO on PPE Images
+Goal
+
+Replace:
+
+label_file.txt
+
+with:
+
+results = model(image)
+Learn
+results[0].boxes
+box.cls
+box.conf
+box.xyxy
+Task
+
+For every detection print:
+
+Class Name
+Confidence
+Coordinates
+
+Example:
+
+Hardhat 0.92
+NO-Hardhat 0.88
+Safety Vest 0.95
+Day 9 — Draw PPE Boxes
+Goal
+
+Visualize YOLO detections.
+
+Task
+
+Draw:
+
+cv2.rectangle()
+cv2.putText()
+
+using YOLO outputs.
+
+Display:
+
+NO-Hardhat 0.88
+
+on the image.
+
+You should understand
+
+How:
+
+box.xyxy[0]
+
+becomes:
+
+xmin,ymin,xmax,ymax
+
+this one is skipped becuase YOLOv8 model can predict only coco datasets and not hardhat,vest,mask etc
+Day 10 — Real Violation Detection
+Goal
+
+Use YOLO outputs directly.
+
+Logic
+if class_name == "NO-Hardhat":
+    print("HELMET VIOLATION")
+
+instead of reading labels.
+
+Output
+HELMET VIOLATION
+MASK VIOLATION
+
+based on model predictions.
+
+Day 11 — Evidence Capture with YOLO
+Goal
+
+Save image only when violation occurs.
+
+Learn
+from datetime import datetime
+Example
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+Save:
+
+violations/
+20260603_101530.jpg
+Day 12 — Violation Log
+Goal
+
+Create incident records.
+
+Learn
+
+CSV writing.
+
+Example:
+
+Time,Violation,Confidence
+10:15,HELMET,0.91
+10:20,MASK,0.87
+Python
+import csv
+Day 13 — Webcam PPE Monitoring
+Goal
+
+Combine everything.
+
+Pipeline:
+
+Webcam
+↓
+YOLO
+↓
+Violation Detection
+↓
+Evidence Save
+↓
+Log Incident
+Output
+
+Live monitoring system.
+
+Day 14 — Project Review
+
+You should be able to explain:
+
+Detection
+How YOLO finds PPE
+Violation Logic
+How violations are identified
+Evidence
+How images are saved
+Logging
+How incidents are recorded

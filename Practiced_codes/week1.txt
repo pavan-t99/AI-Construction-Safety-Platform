@@ -1,0 +1,318 @@
+Week 1 — What You Should Be Able To Explain
+
+If I were interviewing you after Week 1, these are the things I'd expect you to know.
+
+Day 1 — OpenCV Basics
+
+You should be able to explain:
+
+What is a frame?
+A frame is a single image from a video stream.
+
+Example:
+
+30 FPS
+↓
+30 frames every second
+What does cap.read() return?
+ret, frame = cap.read()
+
+ret:
+True  -> frame captured successfully
+False -> frame not captured
+
+frame:
+The actual image (NumPy array)
+Why is a loop needed?
+
+Because:
+
+Video = many frames
+
+Need:->while True:
+
+to process every frame.
+
+Why waitKey()?
+
+Allows OpenCV to:
+
+Show window
+Capture keyboard input
+
+Example:
+
+if cv2.waitKey(1) == ord('q'):
+
+quit when Q is pressed.
+
+Day 2 — YOLO Basics
+
+You should know:
+
+What is YOLO?
+Object Detection Model
+
+Detects:
+
+Person
+Car
+Helmet
+Mask
+etc.
+What is inference?
+Image
+↓
+Model
+↓
+Predictions
+What is results?
+results = model(image)
+
+Stores all detections.
+
+Why results[0]?
+
+Because YOLO returns a list.
+
+Even for one image:
+
+results[0]
+
+is the first image result.
+
+Day 3 — Bounding Boxes
+
+You should know:
+
+What is a bounding box?
+
+Rectangle around an object.
+
+What are
+xmin
+ymin
+xmax
+ymax
+
+?
+
+xmin,ymin -> top-left
+xmax,ymax -> bottom-right
+Why convert to int?
+
+OpenCV drawing functions require:
+
+Pixel coordinates
+
+which must be integers.
+
+What is confidence?
+
+Example:
+
+0.92
+
+means:
+
+92% confidence
+Day 4 — PPE Dataset Understanding
+
+You should know:
+
+What is YAML?
+
+Configuration file.
+
+Example:
+
+nc: 14
+names:
+What is nc?
+Number of Classes
+What is a class ID?
+
+Example:
+
+8 -> NO-Hardhat
+10 -> NO-Safety Vest
+Day 5 — PPE Dataset Analysis
+
+You should know:
+
+YOLO label format
+class_id
+x_center
+y_center
+width
+height
+Why are values between 0 and 1?
+
+Because they are:
+
+Normalized coordinates
+
+independent of image size.
+
+How to convert to pixels?
+
+Multiply by:
+
+image_width
+image_height
+Day 6 — Annotation Verification
+
+You should know:
+
+Why visualize labels?
+
+To verify:
+
+Image
+↓
+Annotation
+↓
+Correct object
+What can go wrong?
+Wrong class
+Wrong box
+Missing annotation
+Why did we do this?
+
+Before training:
+
+Garbage Labels
+↓
+Garbage Model
+Day 7 — Violation Logic & Evidence
+
+You should know:
+
+What is violation logic?
+
+Example:
+
+if class_id == 8:
+
+means:
+
+NO-Hardhat
+↓
+HELMET VIOLATION
+Why use a violation list?
+violation_list = [6,7,8,9,10]
+
+Makes detection easier.
+
+What is evidence capture?
+cv2.imwrite(...)
+
+Saving proof of a violation.
+
+Why use violation_found?
+
+Without it:
+
+3 violations
+↓
+save image 3 times
+
+With it:
+
+3 violations
+↓
+save image once
+Most Important Concepts of Week 1
+
+If you remember only 5 things:
+
+1
+Frame = one image from video
+2
+YOLO returns detections
+3
+Bounding box = xmin,ymin,xmax,ymax
+4
+YOLO labels are normalized
+5
+Violation detected
+↓
+Evidence saved
+
+
+
+
+
+
+
+
+
+
+What You Have Learned So Far
+
+
+Dataset Verification Checklist
+
+✅ Understood YAML
+
+✅ Understood classes
+
+✅ Understood YOLO format
+
+class_id x_center y_center width height
+
+✅ Counted class frequencies
+
+Hardhat      28996
+NO-Hardhat    9705
+...
+
+✅ Visualized annotations
+
+✅ Confirmed boxes match objects
+
+
+You now understand:
+
+OpenCV
+cap.read()
+imshow()
+waitKey()
+
+
+YOLO
+results
+boxes
+confidence
+class ids
+
+
+Bounding Boxes
+xmin
+ymin
+xmax
+ymax
+
+
+PPE Dataset
+Hardhat
+NO-Hardhat
+Mask
+NO-Mask
+...
+
+
+Annotation Verification
+
+You confirmed labels match the objects.
+
+My Assessment
+
+If this were an internship project review, I'd say:
+
+Dataset Understanding:        Good
+YOLO Fundamentals:            Good
+Bounding Box Understanding:   Good
+Annotation Verification:      Good
+Training Knowledge:           Not Started
+Violation Logic:              Ready to Start
