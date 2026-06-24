@@ -8,7 +8,7 @@ import json
 import time
 import tempfile
 import sys
-from Incident_Analysis import GROQ_report
+from Incident_Analysis_v2 import GROQ_report
 from logger_setup import get_logger
 from database import init_db, insert_incident, upsert_worker, insert_alert
 
