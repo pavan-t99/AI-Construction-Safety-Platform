@@ -1,16 +1,21 @@
 # app.py
 import streamlit as st
+from datetime import datetime
 import pandas as pd
 import json
 import os
 import time
 import tempfile
-from safety_pipeline_v2 import run_ai_pipeline
+# Pipeline runs as subprocess — no direct import needed
 import subprocess
 import signal
 import psutil
 from streamlit_autorefresh import st_autorefresh
-from database import get_incidents, get_workers, get_alerts, get_stats
+from database import get_incidents, get_workers, get_alerts, get_stats, init_db
+init_db()  # creates tables if DB was deleted — safe to call every time
+from Incident_Analysis_v2 import get_rag_status    
+from Incident_Analysis_v2 import GROQ_report
+
 # ====================== PRODUCTION DESIGN ======================
 
 if 'PIPELINE_PROCESS' not in st.session_state:
@@ -78,7 +83,7 @@ selected_cam = next((cam for cam in cameras if f"{cam['camera_id']} - {cam['name
 
 # ====================== IMPORTANT FOR YOU RIGHT NOW ======================
 # For now, force all cameras to use your webcam (source = 0)
-video_source = 0                    # <--- CHANGE THIS LINE LATER
+video_source = 1                    # 1 = back camera, 0 = front camera
 camera_id = selected_cam["camera_id"]
 
 # Uncomment below lines when you have multiple real cameras:
@@ -103,11 +108,18 @@ if uploaded_file:
 st.sidebar.markdown("---")
 
 # Pipeline Buttons
-if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", use_container_width=True):
+
+if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", width="stretch"):
     if 'PIPELINE_PROCESS' not in st.session_state or not st.session_state.PIPELINE_PROCESS:
         try:
+            # Using sys.executable ensures the exact same python environment and folder context
+            import sys
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            pipeline_script = os.path.join(current_dir, "s_p4.py")
+            
             st.session_state.PIPELINE_PROCESS = subprocess.Popen(
-                ["python", "safety_pipeline_v2.py", str(video_source), camera_id]
+                [sys.executable, pipeline_script, str(video_source), camera_id],
+                cwd=current_dir # Forces the database/logs to remain in this directory
             )
             st.sidebar.success(f"✅ Pipeline started for **{camera_id}**")
             st.sidebar.info("Check terminal for any camera errors")
@@ -115,22 +127,25 @@ if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", use_containe
             st.sidebar.error(f"Failed to start: {e}")
     else:
         st.sidebar.warning("Pipeline already running")
-
-if st.sidebar.button("⛔ Stop Pipeline", use_container_width=True):
+        
+if st.sidebar.button("⛔ Stop Pipeline", width="stretch"):
     if 'PIPELINE_PROCESS' in st.session_state and st.session_state.PIPELINE_PROCESS:
         try:
             parent = psutil.Process(st.session_state.PIPELINE_PROCESS.pid)
             for child in parent.children(recursive=True):
                 child.kill()
             parent.kill()
+        except psutil.NoSuchProcess:
+            st.sidebar.info("Pipeline already stopped")
         except Exception as e:
             st.sidebar.warning(f"Stop error: {e}")
-        st.session_state.PIPELINE_PROCESS = None
-        st.sidebar.success("Pipeline stopped")
+        finally:
+            st.session_state.PIPELINE_PROCESS = None
+            st.sidebar.success("✅ Pipeline stopped")
 
 st.sidebar.markdown("---")
 page = st.sidebar.radio("Navigation", 
-    ["Dashboard", "Incidents", "Workers", "Site Safety", "Reports", "Messages", "Camera Management"])
+    ["Dashboard", "Executive Summary", "Ask AI", "Incidents", "Workers", "Site Safety", "Reports", "Messages", "Camera Management"])
 
 # ====================== PER-CAMERA PATH HELPER ======================
 def get_camera_path(filename):
@@ -192,17 +207,29 @@ def safe_read_csv(filename):
 # ====================== PAGES ======================
 if page == "Dashboard":
     st.header("Live Site Overview")
-    st_autorefresh(interval=2500, limit=1000, key="data_refresh")
-
+    st_autorefresh(interval=2500, limit=None, key="data_refresh")
     col1, col2 = st.columns([3, 1])
     
     with col1:
         st.subheader("Live Camera Feed")
         live_path = get_camera_path("live_frame.jpg")
-        if os.path.exists(live_path):
-            st.image(live_path, use_container_width=True, caption="Live Construction Site Feed")
+        
+        if os.path.exists(live_path) and os.path.getsize(live_path) > 5000:
+            try:
+                with open(live_path, "rb") as img_file:
+                    img_bytes = img_file.read()
+                if img_bytes:
+                    st.image(img_bytes, width="stretch",
+                             caption=f"🔴 LIVE — {camera_id} • {datetime.now().strftime('%H:%M:%S')}")
+                else:
+                    st.warning("Frame is empty")
+            except Exception as e:
+                st.warning(f"Read error: {e}")
         else:
-            st.info("Waiting for live feed from pipeline... (Start the pipeline)")
+            st.info("📷 **Waiting for live feed...**\n\n"
+                    "1. Click **🚀 Start AI Core Pipeline** in sidebar\n"
+                    "2. Wait 3-5 seconds\n"
+                    "3. Refresh this page")
 
     with col2:
         st.subheader("Current Site Status")
@@ -212,6 +239,199 @@ if page == "Dashboard":
         c2.metric("Site Level", data.get("current_site_risk_level", "SAFE"))
         c3.metric("Total Incidents", data.get("total_incidents", 0))
         c4.metric("Active Workers Violating", data.get("active_workers_in_violation", 0))
+
+elif page == "Executive Summary":
+    st.header("📊 Executive Safety Dashboard")
+    st_autorefresh(interval=30000, limit=None, key="exec_refresh")  # refresh every 30s
+ 
+    from database import get_stats, get_incidents, get_workers
+    import pandas as pd
+    from datetime import datetime, timedelta
+ 
+    stats   = get_stats(camera_id)
+    workers = get_workers(camera_id)
+    incidents = get_incidents(camera_id, limit=500)
+ 
+    # ── TOP KPI ROW ──────────────────────────────────────────────────────────
+    st.subheader("Site Overview")
+    k1, k2, k3, k4, k5 = st.columns(5)
+    k1.metric("Total Incidents",       stats["total_incidents"])
+    k2.metric("Workers Tracked",       stats["total_workers_tracked"])
+    k3.metric("High Risk Workers",     stats["high_risk_workers"])
+    k4.metric("Top Violation",         stats["top_violation"])
+    k5.metric("Historical Risk Score", stats["historical_risk_score"])
+ 
+    st.markdown("---")
+ 
+    if incidents:
+        df = pd.DataFrame(incidents)
+        df["created_at"] = pd.to_datetime(df["created_at"])
+ 
+        col1, col2 = st.columns(2)
+ 
+        # ── VIOLATION BREAKDOWN ───────────────────────────────────────────────
+        with col1:
+            st.subheader("Violations by Type")
+            violation_counts = df["violation_type"].value_counts().reset_index()
+            violation_counts.columns = ["Violation", "Count"]
+            st.bar_chart(violation_counts.set_index("Violation"))
+ 
+        # ── RISK LEVEL BREAKDOWN ─────────────────────────────────────────────
+        with col2:
+            st.subheader("Incidents by Risk Level")
+            risk_counts = df["risk_level"].value_counts().reset_index()
+            risk_counts.columns = ["Risk Level", "Count"]
+            st.bar_chart(risk_counts.set_index("Risk Level"))
+ 
+        st.markdown("---")
+ 
+        # ── DAILY TREND ───────────────────────────────────────────────────────
+        st.subheader("Daily Incident Trend")
+        df["date"] = df["created_at"].dt.date
+        daily = df.groupby("date").size().reset_index(name="Incidents")
+        daily = daily.sort_values("date")
+        st.line_chart(daily.set_index("date"))
+ 
+        st.markdown("---")
+ 
+        col3, col4 = st.columns(2)
+ 
+        # ── TOP VIOLATORS ────────────────────────────────────────────────────
+        with col3:
+            st.subheader("Top Risk Workers")
+            if workers:
+                top_workers = sorted(workers, key=lambda x: x["total_risk_score"], reverse=True)[:5]
+                for w in top_workers:
+                    color = "🔴" if w["risk_level"] == "HIGH" else "🟡" if w["risk_level"] == "MEDIUM" else "🟢"
+                    st.write(f"{color} **{w['person_id']}** — Score: {w['total_risk_score']} | {w['total_incidents']} incidents")
+            else:
+                st.info("No worker data yet")
+ 
+        # ── HOURLY HEATMAP ───────────────────────────────────────────────────
+        with col4:
+            st.subheader("Violations by Hour")
+            df["hour"] = df["created_at"].dt.hour
+            hourly = df.groupby("hour").size().reset_index(name="Count")
+            hourly["Hour"] = hourly["hour"].apply(lambda x: f"{x:02d}:00")
+            st.bar_chart(hourly.set_index("Hour")["Count"])
+ 
+        st.markdown("---")
+ 
+        # ── RECENT INCIDENTS TABLE ───────────────────────────────────────────
+        st.subheader("Recent Incidents")
+        recent = df[["created_at", "person_id", "violation_type", "risk_level", "risk_score", "duration_seconds"]].head(10)
+        recent.columns = ["Time", "Worker", "Violation", "Risk", "Score", "Duration(s)"]
+        recent["Duration(s)"] = recent["Duration(s)"].round(1)
+        st.dataframe(recent, use_container_width=True)
+ 
+    else:
+        st.info("📭 No incident data yet. Run the pipeline to generate data.")
+
+# Natural Language Query page for app.py
+# Add "Ask AI" to navigation
+# Requires: from Incident_Analysis_v2 import GROQ_report
+
+elif page == "Ask AI":
+    st.header("🤖 AI Safety Assistant")
+    st.caption("Ask questions about violations, regulations, or worker safety")
+
+    # ── EXAMPLE QUERIES ──────────────────────────────────────────────────────
+    st.subheader("Try asking:")
+    ex1, ex2, ex3 = st.columns(3)
+    if ex1.button("Who violated most this week?"):
+        st.session_state.nl_query = "Who violated safety rules most this week?"
+    if ex2.button("What PPE is needed near welding?"):
+        st.session_state.nl_query = "What PPE equipment should workers wear near welding areas?"
+    if ex3.button("Summarize today's incidents"):
+        st.session_state.nl_query = "Summarize all safety incidents that occurred today"
+
+    # ── QUERY INPUT ───────────────────────────────────────────────────────────
+    query = st.text_input(
+        "Your question:",
+        value=st.session_state.get("nl_query", ""),
+        placeholder="e.g. Show all helmet violations from yesterday"
+    )
+
+    if st.button("Ask", type="primary") and query:
+        with st.spinner("Thinking..."):
+            try:
+                from database import get_incidents, get_workers, get_stats
+                from groq import Groq
+                import os
+
+                # Build context from database
+                stats     = get_stats(camera_id)
+                incidents = get_incidents(camera_id, limit=100)
+                workers   = get_workers(camera_id)
+
+                # Summarise data for context
+                violation_summary = {}
+                for inc in incidents:
+                    v = inc["violation_type"]
+                    violation_summary[v] = violation_summary.get(v, 0) + 1
+
+                worker_summary = [
+                    f"{w['person_id']}: {w['total_incidents']} incidents, score {w['total_risk_score']}, risk {w['risk_level']}"
+                    for w in sorted(workers, key=lambda x: x["total_risk_score"], reverse=True)[:5]
+                ]
+
+                context = f"""
+SITE DATA FOR {camera_id}:
+Total Incidents: {stats['total_incidents']}
+Total Workers: {stats['total_workers_tracked']}
+High Risk Workers: {stats['high_risk_workers']}
+Top Violation: {stats['top_violation']}
+
+VIOLATION BREAKDOWN:
+{chr(10).join(f"  {k}: {v} incidents" for k, v in violation_summary.items())}
+
+TOP WORKERS BY RISK:
+{chr(10).join(worker_summary) if worker_summary else "No worker data"}
+
+RECENT INCIDENTS (last 10):
+{chr(10).join(f"  [{i['created_at']}] {i['person_id']} — {i['violation_type']} — {i['risk_level']} risk" for i in incidents[:10])}
+"""
+
+                client = Groq(api_key=os.environ.get("GROQ_API_AI_SAFETY_REPORT"))
+                response = client.chat.completions.create(
+                    model="llama-3.3-70b-versatile",
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "You are an AI construction safety analyst. "
+                                "Answer questions about site safety data concisely and professionally. "
+                                "Use the provided site data to give specific, data-driven answers. "
+                                "If asked about regulations, cite OSHA or Indian standards."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": f"{context}\n\nQUESTION: {query}"
+                        }
+                    ],
+                    temperature=0.3,
+                    max_tokens=500
+                )
+                answer = response.choices[0].message.content
+                st.success("**AI Answer:**")
+                st.write(answer)
+
+                # Save to query history
+                if "query_history" not in st.session_state:
+                    st.session_state.query_history = []
+                st.session_state.query_history.insert(0, {"q": query, "a": answer})
+
+            except Exception as e:
+                st.error(f"Query failed: {e}")
+
+    # ── QUERY HISTORY ─────────────────────────────────────────────────────────
+    if st.session_state.get("query_history"):
+        st.markdown("---")
+        st.subheader("Previous Questions")
+        for item in st.session_state.query_history[:5]:
+            with st.expander(f"Q: {item['q'][:60]}..."):
+                st.write(item["a"])
 
 elif page == "Incidents":
     st.header("Incident Records Ledger")
@@ -223,7 +443,7 @@ elif page == "Incidents":
             df = df.sort_values(by="TIMESTAMP", ascending=False)
         else:
             df = df.sort_index(ascending=False)
-        st.dataframe(df, use_container_width=True, height=650)
+        st.dataframe(df, width="stretch", height=650)
 
 # ─────────────────────────────────────────────────────────────────
 # WORKERS PAGE
@@ -231,7 +451,11 @@ elif page == "Incidents":
 
 elif page == "Workers":
     st.header("👷 Worker Risk Analytics")
-    workers = get_workers(camera_id)       # reads from SQLite
+    try:
+        workers = get_workers(camera_id)
+    except Exception as e:
+        st.info("📭 No worker data yet. Start the pipeline to begin tracking.")
+        st.stop()
 
     if not workers:
         st.info("📭 No worker history yet. Run the pipeline on a video.")
@@ -269,7 +493,11 @@ elif page == "Workers":
 # ─────────────────────────────────────────────────────────────────
 elif page == "Reports":
     st.header("📋 AI Safety Reports (Groq Analysis)")
-    incidents = get_incidents(camera_id, limit=50)  # reads from SQLite
+    try:
+        incidents = get_incidents(camera_id, limit=50)
+    except Exception as e:
+        st.info("📭 No reports yet. Start the pipeline to generate incident reports.")
+        st.stop()
 
     if not incidents:
         st.info("📭 No reports yet.")
@@ -321,7 +549,11 @@ elif page == "Reports":
 
 elif page == "Messages":
     st.header("⚠️ Alert History")
-    alerts = get_alerts(camera_id, limit=50)  # reads from SQLite
+    try:
+        alerts = get_alerts(camera_id, limit=50)
+    except Exception as e:
+        st.info("📭 No alerts yet. Start the pipeline to begin monitoring.")
+        st.stop()
 
     if not alerts:
         st.info("No alerts yet.")
@@ -433,6 +665,21 @@ st.markdown("---")
 st.markdown("**AI Safety System** • YOLOv8 + Groq • Production Ready")
 
 
+# if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", width="stretch"):
+#     if 'PIPELINE_PROCESS' not in st.session_state or not st.session_state.PIPELINE_PROCESS:
+#         try:
+#             st.session_state.PIPELINE_PROCESS = subprocess.Popen(
+#                 ["python", "s_p4.py", str(video_source), camera_id]
+#             )
+#             st.sidebar.success(f"✅ Pipeline started for **{camera_id}**")
+#             st.sidebar.info("Check terminal for any camera errors")
+#         except Exception as e:
+#             st.sidebar.error(f"Failed to start: {e}")
+#     else:
+#         st.sidebar.warning("Pipeline already running")
+
+
+
 # elif page == "Workers":
 #     st.header("👷 Worker Risk Analytics Profile Ledger")
 #     data = safe_read_json_list("worker_history.json", [])
@@ -469,7 +716,7 @@ st.markdown("**AI Safety System** • YOLOv8 + Groq • Production Ready")
 #             st.info(incident.get("GROQ_analysis", "Analysis pending..."))
 #             img_path = incident.get("Image_path", "")
 #             if img_path and os.path.exists(str(img_path)):
-#                 st.image(img_path, use_container_width=True)
+#                 st.image(img_path, width="stretch")
 #             st.markdown("---")
 
 # elif page == "Messages":
