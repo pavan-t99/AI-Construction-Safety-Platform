@@ -1,37 +1,39 @@
 # 🏗️ AI-Powered Construction Safety Monitoring Platform
 
-> Real-time PPE violation detection, persistent worker risk profiling, and AI-generated incident analysis — built as an intelligent digital safety officer for construction sites.
+> An intelligent digital safety officer for construction sites — real-time PPE violation detection, persistent worker risk profiling, hybrid RAG-powered incident analysis, and a live Streamlit dashboard.
 
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
 ![YOLOv8](https://img.shields.io/badge/YOLOv8s-78.9%25_mAP50-00B86B?style=flat)
 ![SQLite](https://img.shields.io/badge/SQLite-WAL_Mode-003B57?style=flat&logo=sqlite)
 ![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=flat&logo=streamlit)
-![Groq](https://img.shields.io/badge/Groq-LLM_Analysis-F55036?style=flat)
+![Groq](https://img.shields.io/badge/Groq-llama--3.3--70b-F55036?style=flat)
+![FAISS](https://img.shields.io/badge/FAISS-Hybrid_RAG-009688?style=flat)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat)
 
 ---
 
 ## 📌 What This System Does
 
-This platform behaves like an **intelligent digital safety officer**. It does not just detect violations — it reasons about them.
+This platform does not just detect violations — it reasons about them using a multi-source regulatory knowledge base and a production-grade risk scoring engine.
 
 | Capability | Implementation |
 |---|---|
-| **See** | YOLOv8s custom model, 10 PPE classes, 78.9% mAP50 |
-| **Track** | BotSort persistent worker identity across frames |
-| **Reason** | Multi-factor risk scoring: violation type + duration + machinery proximity |
-| **Analyse** | Groq LLM generates structured incident reports per violation |
-| **Alert** | 3-level escalating Telegram notifications (Alert → Reminder → Escalation) |
-| **Store** | SQLite with WAL mode — concurrent pipeline writes + dashboard reads |
-| **Display** | Live Streamlit dashboard with real-time feed, analytics, worker history |
+| **See** | YOLOv8s custom model — 10 PPE classes, 78.9% mAP50 |
+| **Track** | ByteTrack — persistent worker identity across frames |
+| **Score** | Multi-factor risk engine: violation type + duration + machinery proximity |
+| **Analyse** | Groq LLM (llama-3.3-70b) — structured incident report per violation |
+| **Regulate** | Hybrid RAG — 30 curated OSHA/Indian regulations + PDF-derived FAISS index |
+| **Alert** | 3-level escalating alerts: Alert → Reminder → Escalation |
+| **Store** | SQLite WAL mode — concurrent pipeline writes + dashboard reads |
+| **Display** | Streamlit dashboard — 9 pages: live feed, analytics, AI chat, worker profiles |
 | **Log** | Structured per-camera daily log files with severity levels |
 
 ---
 
 ## 📊 Model Performance
 
-Trained on Kaggle (Tesla T4) using the Construction Site Safety dataset (Roboflow).  
-Model: **YOLOv8s** — 11.1M parameters, 28.5 GFLOPs
+Trained on Kaggle (Tesla T4) using the Construction Site Safety Image Dataset (Roboflow).
+Architecture: **YOLOv8s** — 11.1M parameters, 28.5 GFLOPs
 
 | Metric | Score |
 |---|---|
@@ -43,20 +45,20 @@ Model: **YOLOv8s** — 11.1M parameters, 28.5 GFLOPs
 
 ### Per-Class mAP50
 
-| Class | mAP50 | Notes |
+| Class | mAP50 | |
 |---|---|---|
-| Hardhat | 92.6% | ✅ Strong |
-| Safety Vest | 90.5% | ✅ Strong |
-| machinery | 89.1% | ✅ Strong |
-| Person | 86.4% | ✅ Strong |
-| NO-Mask | 84.0% | ✅ Strong |
-| NO-Safety Vest | 82.9% | ✅ Strong |
-| vehicle | 80.8% | ✅ Strong |
-| Mask | 75.5% | ✅ Good |
-| NO-Hardhat | 56.8% | ⚠️ Improvement planned |
+| Hardhat | 92.6% | ✅ |
+| Safety Vest | 90.5% | ✅ |
+| machinery | 89.1% | ✅ |
+| Person | 86.4% | ✅ |
+| NO-Mask | 84.0% | ✅ |
+| NO-Safety Vest | 82.9% | ✅ |
+| vehicle | 80.8% | ✅ |
+| Mask | 75.5% | ✅ |
+| NO-Hardhat | 56.8% | ⚠️ Targeted fine-tuning planned |
 | Safety Cone | 50.2% | ⚠️ Limited training samples |
 
-> Model weights available on Kaggle: [pavankurman/trained-ppe-yolo-models](https://kaggle.com/pavankurman/trained-ppe-yolo-models)
+> Model weights: [kaggle.com/pavankurman/trained-ppe-yolo-models](https://kaggle.com/pavankurman/trained-ppe-yolo-models)
 
 ---
 
@@ -69,80 +71,105 @@ Camera / Video File
    OpenCV Capture (1280×720)
         │
         ▼
-  YOLOv8s Inference ──────────── ppe_yolov8s_best.pt
-  (resize to 640×640)             78.9% mAP50, 10 classes
+  YOLOv8s Inference ──────────── ppe_yolov8s_best.pt (10 classes)
         │
         ▼
-  BotSort Tracking ───────────── Persistent worker IDs across frames
+  ByteTrack Tracking ─────────── Persistent WORKER_{id} across frames
         │
         ▼
- Violation↔Person Association ── Center-point containment logic
+  Violation↔Person Association ── Center-point containment
         │
         ▼
-  Duration Timer ─────────────── Min 5s before incident is confirmed
+  Duration Timer ─────────────── Min 5s before incident confirmed
         │
         ▼
   Multi-Factor Risk Scorer
-  ├── Base score (violation type)
+  ├── Base score (violation type: 15–30 pts)
   ├── +20 if near machinery (<200px)
   ├── +20 if multiple simultaneous violations
-  └── +10 per 30 seconds of duration
+  └── +10 per 30 seconds duration
         │
         ▼
-  Groq LLM ───────────────────── Structured incident report generation
+  GroqWorker (background thread) ← never blocks detection loop
+  ├── Hybrid RAG retrieval
+  │     ├── Source A: 30 curated OSHA + Indian regulations (FAISS in-memory)
+  │     └── Source B: PDF-derived FAISS index (faiss_construction_index/)
+  ├── Groq LLM report (llama-3.3-70b-versatile)
+  └── SQLite write (incidents + workers tables)
         │
         ▼
-  SQLite (WAL mode)
+  SQLite WAL Mode ─────────────── Concurrent read/write safe
   ├── incidents table
   ├── workers table
   └── alerts table
         │
         ▼
-  Streamlit Dashboard ─────────── Live feed + 6 analytics pages
+  Streamlit Dashboard ─────────── 9 pages, live feed, AI chat, analytics
         │
         ▼
-  Telegram Bot ────────────────── Escalating 3-level alert system
+  Telegram / Email ────────────── Escalating 3-level alerts
 ```
 
 ---
 
 ## 🔑 Key Technical Features
 
-### 1. Multi-Factor Risk Scoring (Novel)
-Violations are not binary. Each incident receives a dynamic risk score:
+### 1. Multi-Factor Real-Time Risk Scoring
+Violations are not binary flags. Every incident gets a dynamic continuous risk score:
+
 ```python
-risk_score = base_points[violation_type]   # 15–30 points
-risk_score += 20  # if worker near machinery
-risk_score += 20  # if multiple simultaneous violations  
-risk_score += (duration_seconds // 30) * 10  # escalates over time
-```
-This enables triage: a 5-second helmet violation scores 30, but the same violation near active machinery for 2 minutes scores 90 (CRITICAL).
+risk_score = base_points[violation_type]        # 15–30 pts
+risk_score += 20   # if worker near machinery (<200px)
+risk_score += 20   # if multiple simultaneous violations
+risk_score += (duration_seconds // 30) * 10    # escalates over time
 
-### 2. Persistent Worker Identity Without Biometrics
-BotSort assigns track IDs that persist across frames. The system maps these to stable `WORKER_{id}` identifiers and accumulates a risk history per worker across the entire session — without RFID, face recognition, or any biometric data.
-
-### 3. 3-Level Escalating Alert System
+risk_level = "LOW" if risk_score < 30 else "MEDIUM" if risk_score < 70 else "HIGH"
 ```
-Level 1 — ALERT      : Immediate on first confirmed violation
-Level 2 — REMINDER   : 30 seconds later if unresolved  
+
+A 5-second helmet violation scores 30. The same violation near active machinery for 2 minutes scores 90 (CRITICAL). Static detection systems cannot do this.
+
+### 2. Hybrid RAG — Dual-Source Regulatory Retrieval
+
+```
+Query: "HELMET VIOLATION"
+        │
+        ├── Source A: 30 curated OSHA + IS regulations (FAISS IndexFlatIP, always available)
+        └── Source B: PDF-derived FAISS index (faiss_construction_index/, optional)
+                │
+                ▼
+        Merge → Deduplicate → Top-k by cosine similarity
+                │
+                ▼
+        Injected into Groq prompt with exact regulation citations
+```
+
+If the PDF index is missing, Source A serves as silent fallback — no crash.
+
+### 3. Groq LLM in Background Thread
+The detection loop never waits for LLM inference. A `GroqWorker` daemon thread with a bounded queue (`maxsize=50`) picks up confirmed incidents and writes to SQLite asynchronously.
+
+### 4. Persistent Worker Risk Profiling Without Biometrics
+ByteTrack assigns visual track IDs that persist across frames. These map to stable `WORKER_{id}` identifiers with cumulative risk histories — no RFID, no face recognition, no biometric data.
+
+### 5. 3-Level Escalating Alert System
+```
+Level 1 — ALERT      : Immediate on first confirmed violation (5s+)
+Level 2 — REMINDER   : 30 seconds later if unresolved
 Level 3 — ESCALATION : 5 minutes later if still unresolved
 ```
-Each level triggers a Telegram notification to the site supervisor.
+All levels → SQLite alerts table + per-camera log + Telegram/Email.
 
-### 4. Concurrent-Safe Storage (WAL Mode)
-The pipeline writes incidents to SQLite while Streamlit reads from the same database simultaneously. WAL (Write-Ahead Logging) mode eliminates read-write locking — a critical production requirement for real-time systems.
+### 6. Concurrent-Safe Storage (WAL Mode)
+The pipeline writes incidents while Streamlit reads from the same SQLite database simultaneously. WAL mode eliminates read-write locking — a critical production requirement.
 
-### 5. Structured Per-Camera Logging
+### 7. Text-to-SQL AI Chat (Ask AI page)
 ```
-data/
-  CAM_01/
-    logs/
-      CAM_01_2026-06-19.log   ← daily rotation, severity levels
-    evidence/                  ← cropped violation images
-    Site_Safety.json           ← live dashboard feed (2s throttle)
-    live_frame.jpg             ← current frame for Streamlit
-    violation_log.csv          ← raw event log
-safety_platform.db             ← SQLite: incidents, workers, alerts
+User question
+      ↓
+Stage 1: Groq converts natural language → SQLite SQL → executes query
+Stage 2: Pull structured context (stats, workers, violation summary)
+Stage 2b: RAG retrieves relevant OSHA/IS regulations
+Stage 3: Groq synthesises all three → professional answer with citations
 ```
 
 ---
@@ -150,13 +177,12 @@ safety_platform.db             ← SQLite: incidents, workers, alerts
 ## 🗄️ Database Schema
 
 ```sql
--- Closed incidents with full metadata
 CREATE TABLE incidents (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     camera_id         TEXT NOT NULL,
     person_id         TEXT NOT NULL,
     violation_type    TEXT NOT NULL,
-    severity          TEXT NOT NULL,
+    severity          TEXT NOT NULL,       -- LOW / MEDIUM / HIGH
     risk_score        INTEGER NOT NULL,
     risk_level        TEXT NOT NULL,
     start_time        TEXT NOT NULL,
@@ -165,11 +191,10 @@ CREATE TABLE incidents (
     confidence        REAL NOT NULL,
     image_path        TEXT,
     near_machinery    INTEGER DEFAULT 0,
-    groq_analysis     TEXT,
+    groq_analysis     TEXT,               -- Full LLM report
     created_at        TEXT DEFAULT (datetime('now'))
 );
 
--- One row per worker — upserted on every incident
 CREATE TABLE workers (
     camera_id               TEXT NOT NULL,
     person_id               TEXT NOT NULL,
@@ -182,11 +207,10 @@ CREATE TABLE workers (
     UNIQUE(camera_id, person_id)
 );
 
--- Full alert history with escalation level
 CREATE TABLE alerts (
     camera_id       TEXT NOT NULL,
     person_id       TEXT NOT NULL,
-    alert_level     INTEGER NOT NULL,
+    alert_level     INTEGER NOT NULL,     -- 1 / 2 / 3
     violation_type  TEXT NOT NULL,
     message         TEXT NOT NULL,
     timestamp       TEXT NOT NULL
@@ -200,16 +224,47 @@ CREATE TABLE alerts (
 ```
 AI-Construction-Safety-Platform/
 │
-├── s_p.py                    # Core AI pipeline (inference + tracking + incidents)
-├── app.py                    # Streamlit dashboard (7 pages)
-├── database.py               # SQLite layer (WAL mode, read/write functions)
-├── logger_setup.py           # Structured per-camera logging
-├── Incident_Analysis.py      # Groq LLM report generation
-├── cameras.json              # Camera registry (editable)
-├── requirements.txt          # Pinned dependencies
+├── safety_pipeline_v4.py        ← Core AI pipeline (inference + tracking + risk scoring)
+├── app.py                       ← Streamlit dashboard (9 pages)
+├── database.py                  ← SQLite WAL layer (read/write functions)
+├── Incident_Analysis_v2.py      ← Groq LLM + Hybrid RAG engine
+├── rag_knowledge_base.py        ← 30 curated OSHA + Indian construction regulations
+├── logger_setup.py              ← Per-camera structured daily logging
+├── cameras.json                 ← Camera registry (editable at runtime)
+├── requirements.txt
 ├── .gitignore
-└── README.md
+├── README.md
+│
+├── faiss_construction_index/    ← PDF-derived FAISS index (Source B RAG)
+│   ├── index.faiss
+│   └── index.pkl
+│
+└── data/
+    ├── safety_platform.db       ← SQLite database
+    └── CAM_01/
+        ├── live_frame.jpg       ← Current annotated frame for dashboard
+        ├── Site_Safety.json     ← Live site metrics (2s throttle)
+        ├── violation_log.csv    ← Raw event log
+        ├── evidence/            ← Cropped violation images
+        └── logs/
+            └── CAM_01_YYYY-MM-DD.log
 ```
+
+---
+
+## 🖥️ Dashboard Pages
+
+| Page | What It Shows |
+|---|---|
+| **Dashboard** | Live annotated camera feed + real-time site risk score |
+| **Executive Summary** | KPIs, violation trend charts, hourly heatmap, top-risk workers |
+| **Ask AI** | Natural language → SQL → RAG → Groq synthesised answer |
+| **Incidents** | Full violation log table from SQLite |
+| **Workers** | Per-worker risk profiles, cumulative scores, violation history |
+| **Site Safety** | Live site risk matrix from Site_Safety.json |
+| **Reports** | Groq-generated incident reports with evidence images |
+| **Messages** | Escalating alert history (Level 1 / 2 / 3) |
+| **Camera Management** | Add, edit, delete cameras — RTSP URL support |
 
 ---
 
@@ -217,10 +272,11 @@ AI-Construction-Safety-Platform/
 
 ### Prerequisites
 - Python 3.10+
-- Webcam or video file for testing
-- Groq API key (free at console.groq.com)
+- Groq API key (free at [console.groq.com](https://console.groq.com))
+- Webcam or video file for local testing
 
 ### Install
+
 ```bash
 git clone https://github.com/pavan-t99/AI-Construction-Safety-Platform.git
 cd AI-Construction-Safety-Platform
@@ -228,27 +284,35 @@ pip install -r requirements.txt
 ```
 
 ### Configure
+
 Create a `.env` file in the project root:
+
 ```
-GROQ_API_KEY=your_groq_api_key_here
+GROQ_API_AI_SAFETY_REPORT=your_groq_api_key_here
+HEADLESS=0
+TELEGRAM_BOT_TOKEN=          # optional
+TELEGRAM_CHAT_ID=            # optional
 ```
 
 ### Download Model Weights
+
 Download `ppe_yolov8s_best.pt` from Kaggle and place in the project root:
+
 ```
 https://kaggle.com/pavankurman/trained-ppe-yolo-models
 ```
 
 ### Run
+
 ```bash
 # Terminal 1 — Start dashboard
 streamlit run app.py
 
 # Terminal 2 — Start pipeline (webcam)
-python s_p.py 0 CAM_01
+python safety_pipeline_v4.py 0 CAM_01
 
 # Or test with a video file
-python s_p.py path/to/video.mp4 CAM_01
+python safety_pipeline_v4.py path/to/video.mp4 CAM_01
 ```
 
 Open browser at `http://localhost:8501`
@@ -259,61 +323,66 @@ Open browser at `http://localhost:8501`
 
 ```
 ultralytics>=8.0.0
-opencv-python>=4.8.0
+opencv-python-headless
 streamlit>=1.28.0
 streamlit-autorefresh
-pandas
 groq
 python-dotenv
+faiss-cpu
+sentence-transformers
+pandas
+plotly
 psutil
+requests
 ```
 
 ---
 
-## 🖥️ Dashboard Pages
+## 🌐 Cloud Deployment (Zero Cost)
 
-| Page | Description |
-|---|---|
-| **Dashboard** | Live camera feed + real-time site risk metrics |
-| **Incidents** | Full violation log (CSV) with timestamps |
-| **Workers** | Per-worker risk profiles, violation history, scores |
-| **Site Safety** | Current site risk level and active violation count |
-| **Reports** | AI-generated Groq incident reports with evidence images |
-| **Messages** | Escalating alert history (Level 1/2/3) |
-| **Camera Management** | Add/edit/remove cameras, RTSP support |
+| Component | Platform | Notes |
+|---|---|---|
+| **Dashboard** | HuggingFace Spaces (Streamlit SDK) | 2 vCPU, 16GB RAM, always-on, public URL |
+| **Pipeline inference** | Kaggle (Tesla T4) | Free GPU, run pipeline notebook |
+| **Local dev** | Docker container | Packaging only, not hosting |
+
+> Live demo: [huggingface.co/spaces/KURMANPAVANKUMAR/AI-Construction-Safety-Platform](https://huggingface.co/spaces/KURMANPAVANKUMAR/AI-Construction-Safety-Platform)
+
+**Note:** On the HuggingFace demo, live webcam is unavailable (cloud sandbox). Use the video upload feature in the sidebar — upload any construction site video and the full pipeline runs: detections, risk scoring, Groq reports, SQLite population, all 9 dashboard pages.
 
 ---
 
 ## 🔬 Research & Patent Potential
 
-This system demonstrates two novel contributions:
+### Novel Contribution 1 — Multi-Factor Real-Time Risk Scoring
+Existing PPE systems output binary violation flags. This system computes a continuous dynamic risk score incorporating violation type, duration, machinery proximity, and simultaneous violation count. This enables intelligent triage that no static detection pipeline provides.
 
-**1. Multi-Factor Real-Time Risk Scoring for Construction Safety**  
-Existing PPE detection systems output binary violation flags. This system computes a continuous risk score incorporating violation type, duration, proximity to machinery, and simultaneous violation count. This approach enables intelligent triage that static detection cannot provide.
+### Novel Contribution 2 — Persistent Worker Risk Profiling via Visual Tracking Alone
+The system builds longitudinal risk histories per worker from CCTV footage alone — no RFID, no biometrics. Visual track IDs are mapped to cumulative incident records across sessions.
 
-**2. Persistent Worker Risk Profiling via Visual Tracking Alone**  
-The system links visual track IDs to cumulative risk histories across sessions without biometrics, RFID, or any physical identifier. This enables longitudinal safety analytics from CCTV footage alone.
-
-Both contributions are novel in the construction safety domain and represent patentable innovations.
+Both are novel in the construction safety domain and represent patentable engineering innovations.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Custom YOLOv8s PPE model (78.9% mAP50)
-- [x] BotSort persistent tracking
+- [x] Custom YOLOv8s PPE model (78.9% mAP50, 10 classes)
+- [x] ByteTrack persistent worker tracking
 - [x] Multi-factor risk scoring engine
-- [x] Groq LLM incident report generation
-- [x] SQLite with WAL mode (concurrent-safe)
+- [x] Groq LLM incident report generation (llama-3.3-70b-versatile)
+- [x] Hybrid RAG — OSHA + Indian regulations + PDF FAISS index
+- [x] SQLite WAL mode (concurrent-safe)
 - [x] 3-level escalating alert system
-- [x] Per-camera structured logging
-- [x] Streamlit multi-page dashboard
-- [ ] RAG pipeline for OSHA/IS regulation lookup
-- [ ] Telegram bot integration
-- [ ] Docker deployment
+- [x] Per-camera structured daily logging
+- [x] Streamlit 9-page dashboard
+- [x] Text-to-SQL AI chat (Ask AI page)
+- [x] HuggingFace Spaces deployment
+- [ ] Telegram bot activation
+- [ ] Docker packaging
+- [ ] NO-Hardhat targeted fine-tuning (v2.0 model)
+- [ ] Worker ReID across sessions (face recognition / RFID — v2.0)
 - [ ] Multi-camera parallel processing
 - [ ] Edge deployment (Jetson Nano)
-- [ ] NO-Hardhat class improvement (targeted fine-tuning)
 
 ---
 

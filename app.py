@@ -93,7 +93,8 @@ if use_webcam_only:
     video_source = 1                    # Change to 0 if you prefer front camera
     st.sidebar.success("Using Webcam (Testing Mode)")
 else:
-    video_source = selected_cam.get("source", 0)   # Use real source from cameras.json
+    raw_source = selected_cam.get("source", 0)
+    video_source = int(raw_source) if str(raw_source).isdigit() else raw_source    # Use real source from cameras.json
     st.sidebar.info(f"Using real source from {selected_cam['camera_id']}")
 
 camera_id = selected_cam["camera_id"]
@@ -123,44 +124,60 @@ if uploaded_file:
         tmp.write(uploaded_file.getvalue())
         video_source = tmp.name
     st.sidebar.success("✅ Video uploaded - Ready to test")
+    if st.sidebar.button("▶️ Run Analysis on Video", type="primary"):
+        st.sidebar.info("Running pipeline on uploaded video...")
+        import subprocess, sys
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        pipeline_script = os.path.join(current_dir, "safety_pipeline_v4.py")
+        camera_id = "CAM_01"
+        process = subprocess.Popen(
+            [sys.executable, pipeline_script, video_source, camera_id],
+            cwd=current_dir
+        )
+        st.session_state.PIPELINE_PROCESS = process
+        st.sidebar.success("✅ Analysis started!")
 
 st.sidebar.markdown("---")
+IS_HF_SPACE = os.environ.get("SPACE_ID") is not None
 
+if IS_HF_SPACE:
+    st.sidebar.warning("⚠️ Live pipeline not available on cloud demo.")
+    st.sidebar.info("Upload a video file below to run analysis.")
+else:
 # Pipeline Buttons
-
-if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", width="stretch"):
-    if 'PIPELINE_PROCESS' not in st.session_state or not st.session_state.PIPELINE_PROCESS:
-        try:
-            # Using sys.executable ensures the exact same python environment and folder context
-            import sys
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            pipeline_script = os.path.join(current_dir, "safety_pipeline_v4.py")
+    if st.sidebar.button("🚀 Start AI Core Pipeline", type="primary", width="stretch"):
+        if 'PIPELINE_PROCESS' not in st.session_state or not st.session_state.PIPELINE_PROCESS:
+            try:
+                # Using sys.executable ensures the exact same python environment and folder context
+                import sys
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                pipeline_script = os.path.join(current_dir, "safety_pipeline_v4.py")
+                
+                st.session_state.PIPELINE_PROCESS = subprocess.Popen(
+                    [sys.executable, pipeline_script, str(video_source), camera_id],
+                    cwd=current_dir # Forces the database/logs to remain in this directory
+                )
+                st.sidebar.success(f"✅ Pipeline started for **{camera_id}**")
+                st.sidebar.info("Check terminal for any camera errors")
+            except Exception as e:
+                st.sidebar.error(f"Failed to start: {e}")
+        else:
+            st.sidebar.warning("Pipeline already running")
             
-            st.session_state.PIPELINE_PROCESS = subprocess.Popen(
-                [sys.executable, pipeline_script, str(video_source), camera_id],
-                cwd=current_dir # Forces the database/logs to remain in this directory
-            )
-            st.sidebar.success(f"✅ Pipeline started for **{camera_id}**")
-            st.sidebar.info("Check terminal for any camera errors")
-        except Exception as e:
-            st.sidebar.error(f"Failed to start: {e}")
-    else:
-        st.sidebar.warning("Pipeline already running")
-        
-if st.sidebar.button("⛔ Stop Pipeline", width="stretch"):
-    if 'PIPELINE_PROCESS' in st.session_state and st.session_state.PIPELINE_PROCESS:
-        try:
-            parent = psutil.Process(st.session_state.PIPELINE_PROCESS.pid)
-            for child in parent.children(recursive=True):
-                child.kill()
-            parent.kill()
-        except psutil.NoSuchProcess:
-            st.sidebar.info("Pipeline already stopped")
-        except Exception as e:
-            st.sidebar.warning(f"Stop error: {e}")
-        finally:
-            st.session_state.PIPELINE_PROCESS = None
-            st.sidebar.success("✅ Pipeline stopped")
+    if st.sidebar.button("⛔ Stop Pipeline", width="stretch"):
+        if 'PIPELINE_PROCESS' in st.session_state and st.session_state.PIPELINE_PROCESS:
+            try:
+                parent = psutil.Process(st.session_state.PIPELINE_PROCESS.pid)
+                for child in parent.children(recursive=True):
+                    child.kill()
+                parent.kill()
+            except psutil.NoSuchProcess:
+                st.sidebar.info("Pipeline already stopped")
+            except Exception as e:
+                st.sidebar.warning(f"Stop error: {e}")
+            finally:
+                st.session_state.PIPELINE_PROCESS = None
+                st.sidebar.success("✅ Pipeline stopped")
 
 
 # ====================== PER-CAMERA PATH HELPER ======================

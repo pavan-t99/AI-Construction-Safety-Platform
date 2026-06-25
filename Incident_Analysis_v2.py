@@ -68,7 +68,8 @@ class SafetyRAGEngine:
             logger.info(f"RAG: Source A ready — {self._curated_index.ntotal} curated regulations")
 
             # SOURCE B: load PDF-derived index from disk (FIXED WIN ESCAPE VIA RAW STRING 'r')
-            index_dir  = r"C:\Users\Anuj\Documents\AI_Safety_System\faiss_construction_index"
+          #  index_dir = r"C:\Users\Anuj\Documents\AI_Safety_System\faiss_construction_index"
+            index_dir  = os.path.join(os.path.dirname(os.path.abspath(__file__)) , "faiss_construction_index")
             faiss_path = os.path.join(index_dir, "index.faiss")
             pkl_path   = os.path.join(index_dir, "index.pkl")
 

@@ -1,14 +1,12 @@
-# Fixed requirements.txt for Sai's modern Python environment
-opencv-python
-ultralytics
-torch
-torchvision
-numpy
-
-    #========this is for gpu version================
-
-# --extra-index-url https://download.pytorch.org/whl/cu130
-# torch==2.12.0+cu130
-# torchvision==0.27.0+cu130
-# opencv-python>=4.10.0
-# ultralytics>=8.3.0
+ultralytics>=8.0.0
+opencv-python-headless
+streamlit>=1.28.0
+streamlit-autorefresh
+groq
+python-dotenv
+faiss-cpu
+sentence-transformers
+pandas
+plotly
+psutil
+requests
