@@ -388,7 +388,8 @@ Both are novel in the construction safety domain and represent patentable engine
 
 ## 👤 Author
 
-**T.Pavan Kumar**  
+**T.Pavan Kumar** 
+final year of BSCS student
 AI & Computer Vision Engineer  
 pavankumar255281"gmail.com 
 (https://www.linkedin.com/in/pavan-kumar-740586399/)  
