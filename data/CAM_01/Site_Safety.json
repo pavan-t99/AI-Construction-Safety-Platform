@@ -1,0 +1,9 @@
+{
+    "current_site_risk_score": 70,
+    "current_site_risk_level": "CRITICAL",
+    "historical_site_risk_score": 4635,
+    "total_incidents": 119,
+    "active_violations": 8,
+    "active_workers_in_violation": 4,
+    "workers_with_history": 119
+}
